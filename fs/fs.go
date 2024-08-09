@@ -10,6 +10,26 @@ import (
 	"time"
 )
 
+func IsRootDir(dir string) bool {
+	dirPath, err := CanonPath(dir)
+	if err != nil {
+		return false
+	}
+	return dirPath == filepath.Dir(dirPath)
+}
+
+func IsSubDir(subDir string, parentDir string) (bool, error) {
+	subDir, err := CanonPath(subDir)
+	if err != nil {
+		return false, err
+	}
+	parentDir, err = CanonPath(parentDir)
+	if err != nil {
+		return false, err
+	}
+	return strings.HasPrefix(subDir, parentDir), nil
+}
+
 // CanonPath returns the canonical absolute path of the given value.
 func CanonPath(s string) (ret string, err error) {
 	ret, err = filepath.Abs(s)
