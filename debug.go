@@ -12,15 +12,15 @@ const duration = 1 * time.Second
 //
 //goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func Debugger() {
-	shouldWait := false
+	shouldWaitDebugger := false
 	for i, arg := range os.Args {
 		if arg == "--debugger" {
-			shouldWait = true
+			shouldWaitDebugger = true
 			os.Args = append(os.Args[:i], os.Args[i+1:]...)
 			break
 		}
 	}
-	if !shouldWait &&
+	if !shouldWaitDebugger &&
 		os.Getenv("DEBUG") == "" &&
 		os.Getenv("WAIT") == "" {
 		return

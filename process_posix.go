@@ -3,6 +3,13 @@
 
 package utils
 
+import (
+	"bufio"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
 // This function can be platform specific.
 func debuggerProcessExists(pid int) (exists bool) {
 	cmd := exec.Command("ps", "w")

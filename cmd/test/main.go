@@ -20,6 +20,9 @@ func Bar() (file *os.File, err error) {
 
 func main() {
 	Debugger()
+	for _, arg := range os.Args {
+		log.Printf("arg: %s", arg)
+	}
 	file := V(os.Open("not_exists"))
 	file, err := Bar()
 	log.Printf("%x, %+v", file, err)
