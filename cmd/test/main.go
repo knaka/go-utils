@@ -19,6 +19,7 @@ func Bar() (file *os.File, err error) {
 }
 
 func main() {
+	Debugger()
 	file := V(os.Open("not_exists"))
 	file, err := Bar()
 	log.Printf("%x, %+v", file, err)
