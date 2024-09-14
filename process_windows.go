@@ -10,7 +10,7 @@ import (
 )
 
 // This function can be platform specific.
-func debuggerProcessExists(pid int) (exists bool) {
+func debuggerProcessExists(_pid int) (exists bool) {
 	cmd := exec.Command("tasklist.exe")
 	cmdOut := V(cmd.StdoutPipe())
 	defer (func() { Ignore(cmdOut.Close()) })()
@@ -19,9 +19,7 @@ func debuggerProcessExists(pid int) (exists bool) {
 	defer (func() { V0(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
-		// No way to get the arguments of a process?
-		if strings.Contains(line, "dlv.exe") {
-			//&&strings.Contains(line, fmt.Sprintf("attach %d", pid)) {
+		if strings.HasPrefix(line, "dlv.exe") {
 			return true
 		}
 	}
