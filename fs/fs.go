@@ -11,7 +11,7 @@ import (
 )
 
 func IsRootDir(dir string) bool {
-	dirPath, err := CanonPath(dir)
+	dirPath, err := Realpath(dir)
 	if err != nil {
 		return false
 	}
@@ -19,19 +19,19 @@ func IsRootDir(dir string) bool {
 }
 
 func IsSubDir(subDir string, parentDir string) (bool, error) {
-	subDir, err := CanonPath(subDir)
+	subDir, err := Realpath(subDir)
 	if err != nil {
 		return false, err
 	}
-	parentDir, err = CanonPath(parentDir)
+	parentDir, err = Realpath(parentDir)
 	if err != nil {
 		return false, err
 	}
 	return strings.HasPrefix(subDir, parentDir), nil
 }
 
-// CanonPath returns the canonical absolute path of the given value.
-func CanonPath(s string) (ret string, err error) {
+// Realpath returns the canonical absolute path of the given value.
+func Realpath(s string) (ret string, err error) {
 	ret, err = filepath.Abs(s)
 	if err != nil {
 		return

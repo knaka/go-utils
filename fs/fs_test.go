@@ -25,7 +25,7 @@ func TestCopy(t *testing.T) {
 	fsassert.FilesAreEqual(t, srcFile, dstFile)
 }
 
-func TestCanonPath(t *testing.T) {
+func TestRealpath(t *testing.T) {
 	type args struct {
 		s string
 	}
@@ -47,13 +47,13 @@ func TestCanonPath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotRet, err := CanonPath(tt.args.s)
+			gotRet, err := Realpath(tt.args.s)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CanonPath() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Realpath() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotRet != tt.wantRet {
-				t.Errorf("CanonPath() gotRet = %v, want %v", gotRet, tt.wantRet)
+				t.Errorf("Realpath() gotRet = %v, want %v", gotRet, tt.wantRet)
 			}
 		})
 	}
