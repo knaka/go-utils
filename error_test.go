@@ -10,10 +10,16 @@ import (
 func TestV(t *testing.T) {
 	reader := strings.NewReader("Hello, Reader!")
 	bytes := make([]byte, 8)
+	count := 0
 	for {
-		n := V(reader.Read(bytes))
+		n := R(reader.Read(bytes)).NilIf(io.EOF)
+		if n == 0 {
+			break
+		}
 		assert.True(t, n >= 0)
+		count++
 	}
+	assert.GreaterOrEqual(t, count, 1)
 }
 
 func TestExpect(t *testing.T) {

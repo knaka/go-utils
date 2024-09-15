@@ -25,5 +25,5 @@ func main() {
 	}
 	file := V(os.Open("not_exists"))
 	file, err := Bar()
-	log.Printf("%x, %+v", file, err)
+	log.Printf("%+v, %+v", file, err)
 }
