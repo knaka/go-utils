@@ -10,18 +10,23 @@ import (
 	"strings"
 )
 
-// This function can be platform specific.
 func debuggerProcessExists(pid int) (exists bool) {
-	cmd := exec.Command("ps", "w")
+	cmd := exec.Command("ps", "wx")
 	cmdOut := V(cmd.StdoutPipe())
 	defer (func() { Ignore(cmdOut.Close()) })()
 	scanner := bufio.NewScanner(cmdOut)
 	V0(cmd.Start()) // Start() does not wait while Run() does
-	defer (func() { V0(cmd.Wait()) })()
+	// On VSCode, os/exec.Command.Wait() (os/exec.Command.Process.Wait()) does not return after attached.
+	// defer (func() { V0(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
+		// IntelliJ IDEA, GoLand
 		if strings.Contains(line, "dlv") &&
 			strings.Contains(line, fmt.Sprintf("attach %d", pid)) {
+			return true
+		}
+		// VSCode. "Debug Adapter Protocol"
+		if strings.Contains(line, "/dlv dap") {
 			return true
 		}
 	}

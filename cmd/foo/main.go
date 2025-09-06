@@ -1,17 +1,22 @@
+// Entry
 package main
 
 import (
-	. "github.com/knaka/go-utils"
 	"log"
 	"os"
+
+	//revive:disable-next-line dot-import
+	. "github.com/knaka/go-utils"
 )
 
+// Foo is a function.
 func Foo() (file *os.File, err error) {
 	defer Catch(&err)
 	file = V(os.Open("not_exists"))
 	return
 }
 
+// Bar is also a function.
 func Bar() (file *os.File, err error) {
 	defer Catch(&err)
 	file = V(Foo())
