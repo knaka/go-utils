@@ -1,7 +1,7 @@
 //go:build debug && darwin
 // +build debug,darwin
 
-package main
+package initwait
 
 import (
 	"bufio"
@@ -54,14 +54,14 @@ func waitDebugger() {
 		return
 	}
 	pid := os.Getpid()
-	fmt.Fprintf(os.Stderr, "Process %d is waiting for debugger to attach.\n", pid)
+	fmt.Fprintf(os.Stderr, "Process %d is waiting for debugger to attach\n", pid)
 	for {
 		time.Sleep(1 * time.Second)
 		if debuggerProcessExists(pid) {
 			break
 		}
 	}
-	fmt.Fprintf(os.Stderr, "Debugger attached.\n")
+	fmt.Fprintf(os.Stderr, "Debugger attached\n")
 	time.Sleep(1 * time.Second)
 }
 

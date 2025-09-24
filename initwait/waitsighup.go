@@ -2,7 +2,7 @@
 // +build debug
 // +build darwin linux
 
-package main
+package initwait
 
 import (
 	"fmt"
@@ -34,7 +34,7 @@ func waitSIGHUP() {
 	signal.Notify(sigCh, syscall.SIGHUP)
 	sig := <-sigCh
 	signal.Reset(syscall.SIGHUP)
-	fmt.Fprintf(os.Stderr, "Signal %v received.\n", sig)
+	fmt.Fprintf(os.Stderr, "Signal %v received\n", sig)
 	time.Sleep(1 * time.Second)
 }
 

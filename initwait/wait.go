@@ -1,7 +1,8 @@
 //go:build debug
 // +build debug
 
-package main
+// initwait is a group of functions to wait until a debugger connects.
+package initwait
 
 import (
 	"bufio"
@@ -36,7 +37,7 @@ func waitHTTP() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()
 	pid := os.Getpid()
-	fmt.Fprintf(os.Stderr, "Process %d is waiting for HTTP access at http://127.0.0.1:%d .\n", pid, port)
+	fmt.Fprintf(os.Stderr, "Process %d is waiting for HTTP access at http://127.0.0.1:%d\n", pid, port)
 	done := make(chan bool, 1)
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "OK")
@@ -49,7 +50,7 @@ func waitHTTP() {
 		http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	}()
 	<-done
-	fmt.Fprintf(os.Stderr, "HTTP request received.\n")
+	fmt.Fprintf(os.Stderr, "HTTP request received\n")
 	time.Sleep(1 * time.Second)
 }
 
@@ -69,10 +70,10 @@ func waitSTDIN() {
 		return
 	}
 	pid := os.Getpid()
-	fmt.Fprintf(os.Stderr, "Process %d is waiting for input on stdin. Press Enter to proceed:\n", pid)
+	fmt.Fprintf(os.Stderr, "Process %d is waiting for input on stdin. Press Enter to proceed\n", pid)
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
-	fmt.Fprintf(os.Stderr, "Input received.\n")
+	fmt.Fprintf(os.Stderr, "Input received\n")
 	time.Sleep(1 * time.Second)
 }
 
@@ -92,12 +93,12 @@ func waitSIGINT() {
 		return
 	}
 	pid := os.Getpid()
-	fmt.Fprintf(os.Stderr, "Process %d is waiting for interrupt signal. Press Ctrl+C to proceed:\n", pid)
+	fmt.Fprintf(os.Stderr, "Process %d is waiting for interrupt signal. Press Ctrl+C to proceed\n", pid)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigCh
 	signal.Reset(syscall.SIGINT, syscall.SIGTERM)
-	fmt.Fprintf(os.Stderr, "Signal %v received.\n", sig)
+	fmt.Fprintf(os.Stderr, "Signal %v received\n", sig)
 	time.Sleep(1 * time.Second)
 }
 
