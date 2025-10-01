@@ -15,6 +15,7 @@ var _ interface{ Unwrap() error } = (*withStack)(nil)
 func (w *withStack) Error() string { return fmt.Sprintf("%+v", w.errWithStack) }
 func (w *withStack) Unwrap() error { return w.errWithStack }
 
+// WithStack wraps an error with stack trace information.
 func WithStack(err error) error {
 	var _withStack *withStack
 	if errors.As(err, &_withStack) {
@@ -44,6 +45,8 @@ func V2[T any, U any](value1 T, value2 U, err error) (T, U) {
 }
 
 // V3 returns three values. If err is not nil, it panics.
+//
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
 func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) {
 	if err == nil {
 		return value1, value2, value3
@@ -67,7 +70,7 @@ func V0(args ...any) {
 	panic("no error argument passed")
 }
 
-// Expect expects the error to be nil or one of the errors passed as arguments.
+// Expect panics if the error is not nil and not one of the expected errors.
 func Expect(err error, expectedErrors ...error) {
 	for _, expectedError := range expectedErrors {
 		if errors.Is(err, expectedError) {
@@ -77,7 +80,7 @@ func Expect(err error, expectedErrors ...error) {
 	panic(WithStack(err))
 }
 
-// E returns error.
+// E extracts an error from the last argument, returning nil if no error is found.
 func E(args ...any) error {
 	if len(args) == 0 {
 		panic("no argument passed")
@@ -91,12 +94,12 @@ func E(args ...any) error {
 	panic("no error argument passed")
 }
 
-// Ignore ignores an error explicitly.
+// Ignore explicitly ignores return values and errors.
 //
 //goland:noinspection GoUnusedParameter
 func Ignore[T any](T, ...any) {}
 
-// ErrorAs returns the error as the type T if possible, otherwise returns nil.
+// ErrorAs returns the error as type T if possible, otherwise returns the zero value.
 func ErrorAs[T error](err error) (t T) {
 	if errors.As(err, &t) {
 		return

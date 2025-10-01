@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestV(t *testing.T) {
@@ -22,7 +23,7 @@ func TestV(t *testing.T) {
 	assert.GreaterOrEqual(t, count, 1)
 }
 
-func TestExpect(t *testing.T) {
+func TestExpect(_ *testing.T) {
 	Expect((func() error {
 		return nil
 	})(), nil, io.EOF)

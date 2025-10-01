@@ -1,14 +1,17 @@
+// Package main is a main package.
 package main
 
 import (
-	. "github.com/knaka/go-utils"
 	"log"
 	"os"
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/knaka/go-utils"
 )
 
 func foo() (err error) {
 	defer Catch(&err)
-	_ = V(os.ReadDir("hoge"))
+	V0(os.ReadDir("hoge"))
 	//return io.EOF
 	return nil
 }

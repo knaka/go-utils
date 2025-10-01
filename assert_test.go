@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestAssert(t *testing.T) {
+func TestAssert(_ *testing.T) {
 	fnS := []func(){
 		func() { A(true) },
 		func() { A(true, "x") },

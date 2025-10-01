@@ -1,15 +1,18 @@
 package utils
 
+// Throw panics with the given error wrapped with stack trace.
 func Throw(err error) {
 	panic(WithStack(err))
 }
 
+// ThrowIf panics with the given error if it is not nil.
 func ThrowIf(err error) {
 	if err != nil {
 		panic(WithStack(err))
 	}
 }
 
+// Catch recovers from panics and handles errors through callbacks.
 func Catch(errRef *error, fns ...func(error)) {
 	if r := recover(); r != nil {
 		if err, ok := r.(error); ok {
@@ -27,6 +30,7 @@ func Catch(errRef *error, fns ...func(error)) {
 	}
 }
 
+// RecoverPanicObject recovers from panics matching a specific object value.
 func RecoverPanicObject[T comparable](errRef *error, target T, fn func() error) {
 	if r := recover(); r != nil {
 		if err, ok := r.(T); ok && err == target {
@@ -43,6 +47,7 @@ func RecoverPanicObject[T comparable](errRef *error, target T, fn func() error) 
 	}
 }
 
+// RecoverPanicType recovers from panics of a specific type.
 func RecoverPanicType[T any](errRef *error, fn func(T) error) {
 	if r := recover(); r != nil {
 		if err, ok := r.(T); ok {

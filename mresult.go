@@ -51,6 +51,7 @@ func Bind1[T any](err error, fn func() (T, error)) (T, error) {
 	)
 }
 
+// Bind2 returns the result of the given function that can fail if err is nil, otherwise the error.
 func Bind2[T any, U any](err error, fn func() (T, U, error)) (T, U, error) {
 	if err != nil {
 		return Nil[T](), Nil[U](), err
@@ -98,6 +99,7 @@ func Let1[T any](err error, fn func() T) T {
 	return fn()
 }
 
+// Let2 returns the result of the given function if err is nil.
 func Let2[T any, U any](err error, fn func() (T, U)) (T, U) {
 	if err != nil {
 		return Nil[T](), Nil[U]()

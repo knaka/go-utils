@@ -2,12 +2,14 @@ package fs
 
 import (
 	"fmt"
-	"github.com/knaka/go-testutils/fsassert"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/knaka/go-testutils/fsassert"
+	"github.com/stretchr/testify/assert"
+
+	//revive:disable-next-line:dot-imports
 	. "github.com/knaka/go-utils"
 )
 

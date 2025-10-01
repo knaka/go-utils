@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	//revive:disable-next-line dot-import
+	//revive:disable-next-line:dot-imports
 	. "github.com/knaka/go-utils"
 )
 

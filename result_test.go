@@ -2,16 +2,13 @@ package utils
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type foo struct{}
-
-func doSomething() (*foo, error) {
-	return &foo{}, io.EOF
-}
 
 type Foo interface {
 	Bar()

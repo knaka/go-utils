@@ -1,15 +1,19 @@
+// Package fs is utilities for filesystem.
 package fs
 
 import (
-	. "github.com/knaka/go-utils"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	//revive:disable-next-line:dot-imports
+	. "github.com/knaka/go-utils"
 )
 
+// IsRootDir returns true if the given directory is the root directory.
 func IsRootDir(dir string) bool {
 	dirPath, err := Realpath(dir)
 	if err != nil {
@@ -18,6 +22,7 @@ func IsRootDir(dir string) bool {
 	return dirPath == filepath.Dir(dirPath)
 }
 
+// IsSubDir returns true if subDir is a subdirectory of parentDir.
 func IsSubDir(subDir string, parentDir string) (bool, error) {
 	subDir, err := Realpath(subDir)
 	if err != nil {
@@ -71,9 +76,9 @@ func copyDir(srcDir string, dstDir string) (err error) {
 		} else if !srcObjStat.Mode().IsRegular() {
 			switch srcObjStat.Mode().Type() & os.ModeType {
 			case os.ModeSymlink:
-				linkDst, err_ := os.Readlink(srcObjPath)
-				if err_ != nil {
-					return err_
+				linkDst, err2 := os.Readlink(srcObjPath)
+				if err2 != nil {
+					return err2
 				}
 				err = os.Symlink(linkDst, dstObj)
 				if err != nil {
@@ -92,19 +97,18 @@ func copyDir(srcDir string, dstDir string) (err error) {
 
 // Copy copies a file or a directory.
 func Copy(src string, dst string) (err error) {
-	if stat, err_ := os.Stat(src); err_ != nil {
-		return err_
+	if stat, err2 := os.Stat(src); err2 != nil {
+		return err2
 	} else if stat.IsDir() {
-		if _, err_ := os.Stat(dst); err_ == nil {
+		if _, err2 := os.Stat(dst); err2 == nil {
 			Ignore(os.RemoveAll(dst))
 		}
 		return copyDir(src, dst)
-	} else {
-		if _, err_ := os.Stat(dst); err_ == nil {
-			Ignore(os.RemoveAll(dst))
-		}
-		return copyFile(src, dst)
 	}
+	if _, err2 := os.Stat(dst); err2 == nil {
+		Ignore(os.RemoveAll(dst))
+	}
+	return copyFile(src, dst)
 }
 
 // Move moves a file or a directory.
@@ -116,14 +120,15 @@ func Move(src string, dst string) (err error) {
 	return os.RemoveAll(src)
 }
 
+// Touch creates an empty file if it doesn't exist, or updates its modification time if it does.
 func Touch(path string) (err error) {
 	_, err = os.Stat(path)
 	if err != nil {
 		// If not exists, create an empty file.
 		if os.IsNotExist(err) {
-			file, err_ := os.Create(path)
-			if err_ != nil {
-				return err_
+			file, err2 := os.Create(path)
+			if err2 != nil {
+				return err2
 			}
 			return file.Close()
 		}

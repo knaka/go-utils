@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// This function can be platform specific.
-func debuggerProcessExists(_pid int) (exists bool) {
+func debuggerProcessExists(_ int) (exists bool) {
 	cmd := exec.Command("tasklist.exe")
 	cmdOut := V(cmd.StdoutPipe())
 	defer (func() { Ignore(cmdOut.Close()) })()
