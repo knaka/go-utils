@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type S struct {
@@ -47,7 +48,7 @@ func TestElvis(t *testing.T) {
 			want: &value,
 		},
 	}
-	value2 := S{Foo: "c", Bar: V(time.Parse(time.RFC3339, "2021-01-01T00:00:00Z"))}
+	value2 := S{Foo: "c", Bar: Value(time.Parse(time.RFC3339, "2021-01-01T00:00:00Z"))}
 	for _, tt := range testsPointer {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, Elvis(tt.args.t, tt.args.f), "Elvis(%v, %v)", tt.args.t, tt.args.f)

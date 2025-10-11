@@ -12,12 +12,12 @@ import (
 
 func debuggerProcessExists(pid int) (exists bool) {
 	cmd := exec.Command("ps", "wx")
-	cmdOut := V(cmd.StdoutPipe())
+	cmdOut := Value(cmd.StdoutPipe())
 	defer (func() { Ignore(cmdOut.Close()) })()
 	scanner := bufio.NewScanner(cmdOut)
-	V0(cmd.Start()) // Start() does not wait while Run() does
+	Must(cmd.Start()) // Start() does not wait while Run() does
 	// On VSCode, os/exec.Command.Wait() (os/exec.Command.Process.Wait()) does not return after attached.
-	// defer (func() { V0(cmd.Wait()) })()
+	// defer (func() { Must(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
 		// IntelliJ IDEA, GoLand

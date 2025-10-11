@@ -14,16 +14,16 @@ import (
 )
 
 func TestCopy(t *testing.T) {
-	tempDir := V(os.MkdirTemp("", "copy_dir_test"))
+	tempDir := Value(os.MkdirTemp("", "copy_dir_test"))
 
 	srcDir := filepath.Join("testdata", "dir1")
 	dstDir := filepath.Join(tempDir, "dirX")
-	V0(Copy(srcDir, dstDir))
+	Must(Copy(srcDir, dstDir))
 	fsassert.DirsAreEqual(t, srcDir, dstDir)
 
 	srcFile := filepath.Join("testdata", "dir1", "bar.txt")
 	dstFile := filepath.Join(tempDir, "bar.txt")
-	V0(Copy(srcFile, dstFile))
+	Must(Copy(srcFile, dstFile))
 	fsassert.FilesAreEqual(t, srcFile, dstFile)
 }
 
@@ -31,9 +31,9 @@ func TestRealpath(t *testing.T) {
 	type args struct {
 		s string
 	}
-	wd := V(os.Getwd())
-	wd = V(filepath.Abs(wd))
-	wd = V(filepath.EvalSymlinks(wd))
+	wd := Value(os.Getwd())
+	wd = Value(filepath.Abs(wd))
+	wd = Value(filepath.EvalSymlinks(wd))
 	wd = filepath.Clean(wd)
 	tests := []struct {
 		name    string
@@ -62,10 +62,10 @@ func TestRealpath(t *testing.T) {
 }
 
 func TestTouch(t *testing.T) {
-	tempDir := V(os.MkdirTemp("", "touch_test"))
+	tempDir := Value(os.MkdirTemp("", "touch_test"))
 	filePath := filepath.Join(tempDir, "foo.txt")
 
-	V0(Touch(filePath))
+	Must(Touch(filePath))
 	stat, err := os.Stat(filePath)
 	assert.Nil(t, err)
 	assert.True(t, stat.Size() == 0)

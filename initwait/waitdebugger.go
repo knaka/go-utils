@@ -22,7 +22,7 @@ func debuggerProcessExists(pid int) (exists bool) {
 	scanner := bufio.NewScanner(cmdOut)
 	cmd.Start() // Start() does not block while Run() does.
 	// On VSCode, os/exec.Command.Wait() (os/exec.Command.Process.Wait()) does not return after debugger is attached.
-	// defer (func() { V0(cmd.Wait()) })()
+	// defer (func() { Must(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
 		// IntelliJ IDEA, GoLand

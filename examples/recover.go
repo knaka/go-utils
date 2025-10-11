@@ -11,7 +11,7 @@ import (
 
 func foo() (err error) {
 	defer Catch(&err)
-	V0(os.ReadDir("hoge"))
+	Must(os.ReadDir("hoge"))
 	//return io.EOF
 	return nil
 }

@@ -21,24 +21,24 @@ var _ Foo = &Baz{}
 func (b *Baz) Bar() {}
 
 func TestNewResult(t *testing.T) {
-	foo1 := PR((func() (*foo, error) {
+	foo1 := PtrResult((func() (*foo, error) {
 		return &foo{}, io.EOF
 	})()).NilIf(io.EOF)
 	assert.Nil(t, foo1)
 
-	foo2 := R((func() (*foo, error) { return &foo{}, nil })()).NilIf(io.EOF)
+	foo2 := Result((func() (*foo, error) { return &foo{}, nil })()).NilIf(io.EOF)
 	assert.NotNil(t, foo2)
 
-	foo3 := R((func() (Foo, error) { return &Baz{}, nil })()).NilIf(io.EOF)
+	foo3 := Result((func() (Foo, error) { return &Baz{}, nil })()).NilIf(io.EOF)
 	assert.NotNil(t, foo3)
 
-	foo4 := R((func() (Foo, error) { return &Baz{}, io.EOF })()).NilIf(io.EOF)
+	foo4 := Result((func() (Foo, error) { return &Baz{}, io.EOF })()).NilIf(io.EOF)
 	assert.Nil(t, foo4)
 }
 
 func testCatch() (err error) {
 	defer Catch(&err)
-	Ignore(PR((func() (*foo, error) { return &foo{}, io.EOF })()).NilIf(errors.New("bar")))
+	Ignore(PtrResult((func() (*foo, error) { return &foo{}, io.EOF })()).NilIf(errors.New("bar")))
 	return nil
 }
 

@@ -5,33 +5,33 @@ import (
 	"io"
 	"log"
 	"strings"
-)
 
-import . "github.com/knaka/go-utils"
+	. "github.com/knaka/go-utils"
+)
 
 func Bar() (err error) {
 	defer Catch(&err)
 	reader := strings.NewReader("Hello, Reader!")
 	bytes := make([]byte, 8)
 	for {
-		_ = V(reader.Read(bytes))
+		_ = Value(reader.Read(bytes))
 	}
 }
 
 func Foo() (err error) {
 	defer Catch(&err)
-	V0(Bar())
+	Must(Bar())
 	return
 }
 
 func Main() (err error) {
 	defer Catch(&err)
-	V0(Foo())
+	Must(Foo())
 	return
 }
 
 func main() {
-	V0((func() error { return nil })())
+	Must((func() error { return nil })())
 	//err := Bar()
 	err := Main()
 	Assertf(errors.Is(err, io.EOF), "should be io.EOF: %v", err)

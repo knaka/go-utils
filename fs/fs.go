@@ -50,15 +50,15 @@ func Realpath(s string) (ret string, err error) {
 }
 
 func copyFile(src, dst string) (err error) {
-	reader := V(os.Open(src))
-	defer (func() { V0(reader.Close()) })()
-	writer := V(os.Create(dst))
+	reader := Value(os.Open(src))
+	defer (func() { Must(reader.Close()) })()
+	writer := Value(os.Create(dst))
 	defer (func() { Ignore(writer.Close()) })()
-	V0(io.Copy(writer, reader))
-	V0(writer.Close())
-	statSrc := V(os.Stat(src))
-	V0(os.Chmod(dst, statSrc.Mode()))
-	V0(os.Chtimes(dst, statSrc.ModTime(), statSrc.ModTime()))
+	Must(io.Copy(writer, reader))
+	Must(writer.Close())
+	statSrc := Value(os.Stat(src))
+	Must(os.Chmod(dst, statSrc.Mode()))
+	Must(os.Chtimes(dst, statSrc.ModTime(), statSrc.ModTime()))
 	return
 }
 

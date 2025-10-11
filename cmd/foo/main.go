@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	_ "github.com/knaka/go-utils/initwait"
+
 	//revive:disable-next-line:dot-imports
 	. "github.com/knaka/go-utils"
 )
@@ -12,23 +14,22 @@ import (
 // Foo is a function.
 func Foo() (file *os.File, err error) {
 	defer Catch(&err)
-	file = V(os.Open("not_exists"))
+	file = Value(os.Open("not_exists"))
 	return
 }
 
 // Bar is also a function.
 func Bar() (file *os.File, err error) {
 	defer Catch(&err)
-	file = V(Foo())
+	file = Value(Foo())
 	return
 }
 
 func main() {
-	Debugger()
 	for _, arg := range os.Args {
 		log.Printf("arg: %s", arg)
 	}
-	file := V(os.Open("not_exists"))
+	file := Value(os.Open("not_exists"))
 	file, err := Bar()
 	log.Printf("%+v, %+v", file, err)
 }

@@ -11,11 +11,11 @@ import (
 
 func debuggerProcessExists(_ int) (exists bool) {
 	cmd := exec.Command("tasklist.exe")
-	cmdOut := V(cmd.StdoutPipe())
+	cmdOut := Value(cmd.StdoutPipe())
 	defer (func() { Ignore(cmdOut.Close()) })()
 	scanner := bufio.NewScanner(cmdOut)
-	V0(cmd.Start()) // Start() does not wait while Run() does
-	defer (func() { V0(cmd.Wait()) })()
+	Must(cmd.Start()) // Start() does not wait while Run() does
+	defer (func() { Must(cmd.Wait()) })()
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "dlv.exe") {

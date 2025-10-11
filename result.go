@@ -2,36 +2,60 @@ package utils
 
 import "errors"
 
-// valueResult is not exported because the member values are not expected to be used by the user directly.
-type valueResult[T any] struct {
+// valueErrorContext is not exported because the member values are not expected to be used by the user directly.
+type valueErrorContext[T any] struct {
 	value T
 	err   error
 }
 
-// R returns a value + error result context.
+// Result returns a value + error result context.
 //
 //revive:disable-next-line:unexported-return
 //goland:noinspection GoExportedFuncWithUnexportedType
-func R[T any](value T, err error) *valueResult[T] {
-	return &valueResult[T]{
+func Result[T any](value T, err error) *valueErrorContext[T] {
+	return &valueErrorContext[T]{
 		value: value,
 		err:   err,
 	}
 }
 
-// PR returns a pointer + error result context.
+// R returns a value + error result context.
+// Deprecated: Use Result instead.
 //
 //revive:disable-next-line:unexported-return
 //goland:noinspection GoExportedFuncWithUnexportedType
-func PR[T any](value T, err error) *valueResult[*T] {
-	return &valueResult[*T]{
+func R[T any](value T, err error) *valueErrorContext[T] {
+	return &valueErrorContext[T]{
+		value: value,
+		err:   err,
+	}
+}
+
+// PtrResult returns a pointer + error result context.
+//
+//revive:disable-next-line:unexported-return
+//goland:noinspection GoExportedFuncWithUnexportedType
+func PtrResult[T any](value T, err error) *valueErrorContext[*T] {
+	return &valueErrorContext[*T]{
+		value: &value,
+		err:   err,
+	}
+}
+
+// PR returns a pointer + error result context.
+// Deprecated: Use PtrResult instead.
+//
+//revive:disable-next-line:unexported-return
+//goland:noinspection GoExportedFuncWithUnexportedType
+func PR[T any](value T, err error) *valueErrorContext[*T] {
+	return &valueErrorContext[*T]{
 		value: &value,
 		err:   err,
 	}
 }
 
 // NilIf returns nil if the error is one of the given errors and returns the value otherwise. This is useful against functions which use some errors for success results.
-func (e *valueResult[T]) NilIf(errs ...error) T {
+func (e *valueErrorContext[T]) NilIf(errs ...error) T {
 	if e.err == nil {
 		return e.value
 	}
@@ -44,7 +68,7 @@ func (e *valueResult[T]) NilIf(errs ...error) T {
 }
 
 // NilIfF returns nil if any of the given functions return true for the error, otherwise panics.
-func (e *valueResult[T]) NilIfF(fn ...func(error) bool) T {
+func (e *valueErrorContext[T]) NilIfF(fn ...func(error) bool) T {
 	if e.err == nil {
 		return e.value
 	}
@@ -57,7 +81,7 @@ func (e *valueResult[T]) NilIfF(fn ...func(error) bool) T {
 }
 
 // TrueIf returns true if the error is one of the given errors, otherwise panics.
-func (e *valueResult[T]) TrueIf(errs ...error) bool {
+func (e *valueErrorContext[T]) TrueIf(errs ...error) bool {
 	if e.err == nil {
 		return false
 	}
@@ -70,6 +94,6 @@ func (e *valueResult[T]) TrueIf(errs ...error) bool {
 }
 
 // FalseIf returns false if the error is one of the given errors, otherwise panics.
-func (e *valueResult[T]) FalseIf(errs ...error) bool {
+func (e *valueErrorContext[T]) FalseIf(errs ...error) bool {
 	return !e.TrueIf(errs...)
 }

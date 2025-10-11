@@ -13,7 +13,7 @@ func TestV(t *testing.T) {
 	bytes := make([]byte, 8)
 	count := 0
 	for {
-		n := R(reader.Read(bytes)).NilIf(io.EOF)
+		n := Result(reader.Read(bytes)).NilIf(io.EOF)
 		if n == 0 {
 			break
 		}
