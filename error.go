@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/friendsofgo/errors"
 )
 
@@ -52,6 +53,22 @@ func V3[T any, U any, V any](value1 T, value2 U, value3 V, err error) (T, U, V) 
 		return value1, value2, value3
 	}
 	panic(WithStack(err))
+}
+
+// Must ensures the operation succeeds or panics.
+//
+//goland:noinspection GoUnusedExportedFunction, GoUnnecessarilyExportedIdentifiers
+func Must(args ...any) {
+	if len(args) == 0 {
+		panic("no argument passed")
+	}
+	if args[len(args)-1] == nil {
+		return
+	}
+	if err, ok := (args[len(args)-1]).(error); ok {
+		panic(WithStack(err))
+	}
+	panic("no error argument passed")
 }
 
 // V0 returns no value. If err is not nil, it panics.
