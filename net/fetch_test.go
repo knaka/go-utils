@@ -27,7 +27,7 @@ func TestFetch(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Test basic fetch
-	err = Fetch(server.URL+"/testfile.txt", WithDir(tempDir))
+	err = Fetch(server.URL+"/testfile.txt", WithOutput(filepath.Join(tempDir, "testfile.txt")))
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -35,23 +35,6 @@ func TestFetch(t *testing.T) {
 	// Verify file was created and has correct content
 	filePath := filepath.Join(tempDir, "testfile.txt")
 	content, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Fatalf("Failed to read downloaded file: %v", err)
-	}
-
-	if string(content) != "test content" {
-		t.Errorf("Expected 'test content', got '%s'", string(content))
-	}
-
-	// Test basic fetch
-	err = Fetch(server.URL+"/testfile.txt", WithDir(tempDir), WithBase("another.txt"))
-	if err != nil {
-		t.Fatalf("Fetch failed: %v", err)
-	}
-
-	// Verify file was created and has correct content
-	filePath = filepath.Join(tempDir, "another.txt")
-	content, err = os.ReadFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to read downloaded file: %v", err)
 	}
@@ -81,7 +64,7 @@ func TestFetchWithVerbose(t *testing.T) {
 
 	// Test fetch with verbose
 	err = Fetch(server.URL+"/verbose.txt",
-		WithDir(tempDir),
+		WithOutput(filepath.Join(tempDir, "verbose.txt")),
 		WithVerbose(true),
 		WithStderr(&stderrBuf))
 	if err != nil {
@@ -106,7 +89,7 @@ func TestFetchNonExistentURL(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Test fetch with non-existent URL
-	err = Fetch("http://localhost:99999/nonexistent", WithDir(tempDir))
+	err = Fetch("http://localhost:99999/nonexistent")
 	if err == nil {
 		t.Error("Expected error for non-existent URL, got nil")
 	}
@@ -127,7 +110,7 @@ func TestFetch404Error(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Test fetch with 404 response
-	err = Fetch(server.URL+"/notfound.txt", WithDir(tempDir))
+	err = Fetch(server.URL + "/notfound.txt")
 	if err == nil {
 		t.Error("Expected error for 404 response, got nil")
 	}
