@@ -26,8 +26,7 @@ func NewFailable[T any, U any](fn func(*T, U) error) func(v U) Option[T] {
 // Apply applies a slice of functional options to the given parameters.
 func Apply[T any](params *T, opts []Option[T]) (err error) {
 	for _, opt := range opts {
-		err = opt(params)
-		if err != nil {
+		if err = opt(params); err != nil {
 			return
 		}
 	}
