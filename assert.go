@@ -26,3 +26,12 @@ func Assert(b bool, a ...any) {
 
 // A is a shorthand for Assert.
 var A = Assert
+
+// Some asserts that all arguments are non-nil. If any argument is nil, it terminates the program with a fatal error.
+func Some(args ...any) {
+	for i, arg := range args {
+		if arg == nil {
+			panic(WithStack(fmt.Errorf("%d-th argument is null", i)))
+		}
+	}
+}
