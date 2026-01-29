@@ -4,14 +4,19 @@
 "${sourced_897a0c7-false}" && return 0; sourced_897a0c7=true
 
 # ==========================================================================
-# Constants
+#region Constants
 
 # Return code when a test is skipped
 # shellcheck disable=SC2034
 rc_test_skipped=10
 
+#endregion
+
 # ==========================================================================
-# Environment variables. If not set by the caller, they are set later in `tasksh_main`
+#region Environment variables. If not set by the caller, they are set later in `tasksh_main`
+
+# The initial working directory when the script was started.
+: "${INITIAL_PWD:=$PWD}"
 
 # The path to the shell executable which is running this script.
 : "${SH:=/bin/sh}"
@@ -38,20 +43,12 @@ mkdir -p "$CACHE_DIR"
 # For platforms other than Windows
 : "${LOCALAPPDATA:=/}"
 
-# ==========================================================================
-# Basic
-
-# Guard against multiple calls. $1 is a unique ID
-first_call() {
-  eval "\${called_$1-false}" && return 1
-  eval "called_$1=true"
-}
+#endregion
 
 # ==========================================================================
-# Temporary directory and cleaning up
+#region Temporary directory and cleaning up
 
-TEMP_DIR=
-unset TEMP_DIR
+TEMP_DIR=; unset TEMP_DIR
 
 # Create a temporary directory and assign $TEMP_DIR env var
 init_temp_dir() {
@@ -67,8 +64,8 @@ readonly stmts_file_id=523f163
 chaintrap() {
   local stmts_new="$1"
   shift 
-  init_temp_dir
-  # Base name of the script file containing the statements to be called during finalization
+  init_temp_dir || return $?
+  # Basename of the script file containing the statements to be called during finalization
   local stmts_file_base="$TEMP_DIR"/"$stmts_file_id"
   local stmts_old_file="$TEMP_DIR"/347803f
   local sigspec
@@ -99,8 +96,25 @@ finalize() {
   rm -fr "$TEMP_DIR"
 }
 
+#endregion
+
 # ==========================================================================
-# Platform detection.
+#region Utilities
+
+# Guard against multiple calls. $1 is a unique ID
+first_call() {
+  eval "\${called_$1-false}" && return 1
+  eval "called_$1=true"
+}
+
+is_terminal() {
+  test -t 1
+}
+
+#endregion
+
+# ==========================================================================
+#region Platform detection. Detect platform without using subprocesses whenever possible.
 
 is_linux() {
   test -d /proc -o -d /sys
@@ -114,6 +128,11 @@ is_windows() {
   test -d "c:/" -a ! -d /proc
 }
 
+# Executable file extension.
+exe_ext=
+# shellcheck disable=SC2034
+is_windows && exe_ext=".exe"
+
 is_debian() {
   test -f /etc/debian_version
 }
@@ -126,64 +145,10 @@ is_alpine() {
   test -f /etc/alpine-release
 }
 
-# ==========================================================================
-# Binary - text encoding/decoding.
-
-oct_dump() {
-  if test $# -eq 0
-  then
-    cat
-  else
-    printf "%s" "$*"
-  fi | od -A n -t o1 -v | xargs printf "%s "
-}
-
-oct_restore() {
-  if test $# -eq 0
-  then
-    cat
-  else
-    printf "%s" "$*"
-  fi | xargs printf '\\\\0%s\n' | xargs printf '%b'
-}
-
-oct_encode() {
-  if test $# -eq 0
-  then
-    cat
-  else
-    printf "%s" "$*"
-  fi | od -A n -t o1 -v | xargs printf "%s"
-}
-
-oct_decode() {
-  if test $# -eq 0
-  then
-    cat
-  else
-    printf "%s" "$*"
-  fi | sed 's/.../& /g' | xargs printf '\\\\0%s\n' | xargs printf '%b'
-}
-
-hex_dump() {
-  od -A n -t x1 -v | xargs printf "%s "
-}
-
-hex_restore() {
-  set -- awk
-  if command -v mawk >/dev/null 2>&1
-  then
-    set -- mawk
-  elif command -v gawk >/dev/null 2>&1
-  then
-    set -- gawk --non-decimal-data
-  fi
-  # shellcheck disable=SC2016
-  xargs printf "%s\n" | "$@" '{ printf("%c", int("0x" $1)) }'
-}
+#endregion
 
 # ==========================================================================
-# IFS manipulation.
+#region IFS manipulation
 
 # shellcheck disable=SC2034
 readonly unit_sep=""
@@ -213,7 +178,7 @@ set_ifs_newline() {
 }
 
 # shellcheck disable=SC2034
-readonly newline="
+readonly newline_char="
 "
 
 # To split paths.
@@ -229,43 +194,12 @@ set_ifs_blank() {
   printf ' \t'
 }
 
-csv_ifss_6b672ac=
-
-# Push IFS to the stack.
-push_ifs() {
-  if test "${IFS+set}" = set
-  then
-    csv_ifss_6b672ac="$(printf "%s" "$IFS" | oct_dump),$csv_ifss_6b672ac"
-  else
-    csv_ifss_6b672ac=",$csv_ifss_6b672ac"
-  fi
-  if test $# -gt 0
-  then
-    IFS="$1"
-  fi
-}
-
-# Pop IFS from the stack.
-pop_ifs() {
-  if test -z "$csv_ifss_6b672ac"
-  then
-    return 1
-  fi
-  local v
-  v="${csv_ifss_6b672ac%%,*}"
-  csv_ifss_6b672ac="${csv_ifss_6b672ac#*,}"
-  if test -n "$v"
-  then
-    IFS="$(printf "%s" "$v" | oct_restore)"
-  else
-    unset IFS
-  fi
-}
+#endregion
 
 # ==========================================================================
-# Directory stack.
+#region Directory stack
 
-psv_dirs_4c15d80=
+psv_dirs_4c15d80=""
 
 # `pushd` alternative.
 push_dir() {
@@ -290,8 +224,10 @@ pop_dir() {
   cd "$dir" || return 1
 }
 
+#endregion
+
 # ==========================================================================
-# Map (associative array) functions. "IFS-Separated Map"
+#region Map (associative array) functions. "IFS-Separated Map"
 
 # Put a value in an associative array implemented as a property list.
 ifsm_put() {
@@ -316,7 +252,7 @@ ifsm_get() {
   set -- $1
   while test $# -gt 0
   do
-    test "$1" = "$key" && printf "%s" "$2" && return
+    test "$1" = "$key" && printf "%s" "$2" && return 0
     shift 2
   done
   return 1
@@ -348,12 +284,130 @@ ifsm_values() {
   done
 }
 
+#endregion
+
 # ==========================================================================
-# Fetch and run a command from an archive
+#region Fetch and run a command from an archive
+
+windows_exe_extensions=".exe .EXE .cmd .CMD .bat .BAT"
+
+# Invoke external command with proper executable extension, with the specified invocation mode.
+#
+# Invocation mode can be specified via INVOCATION_MODE environment variable:
+#   INVOCATION_MODE=standard: (Default) Run the command in the current process.
+#   INVOCATION_MODE=exec: Replace this process with the command.
+#   INVOCATION_MODE=exec-direct: Replace this process with the command, without calling cleanups.
+#   INVOCATION_MODE=background: Run the command in the background.
+#
+# Invocation mode can be specified also with `--invocation-mode=...` option. The option is excluded from final arguments which are passed to the external command.
+#
+# Command-specific invocation mode can be set using INVOCATION_MODE_<command> variables:
+#   INVOCATION_MODE_foo=background: Run external command `foo` in the background.
+#   The command name is extracted from the basename of the first argument, with Windows
+#   executable extensions (.exe, .cmd, etc.) stripped if on Windows platform.
+invoke() {
+  if test $# -eq 0
+  then
+    echo "No command specified" >&2
+    exit 1
+  fi
+  local invocation_mode="${INVOCATION_MODE:-standard}"
+  local base="${1##*/}"
+  if is_windows
+  then
+    local ext
+    local IFS=" "
+    for ext in $windows_exe_extensions
+    do
+      base="${base%"$ext"}"
+    done
+  fi
+  if eval "test \"\${INVOCATION_MODE_$base+set}\" = set"
+  then
+    eval "invocation_mode=\"\${INVOCATION_MODE_$base}\""
+  fi
+  local arg
+  for arg in "$@"
+  do
+    case "$arg" in
+      (--invocation-mode=*)
+        invocation_mode="${arg#--invocation-mode=}"
+        ;;
+      (*)
+        set -- "$@" "$arg"
+        ;;
+    esac
+    shift
+  done
+  local cmd="$1"
+  case "$1" in
+    (*/*)
+      if is_windows
+      then
+        local ext
+        for ext in $windows_exe_extensions
+        do
+          if test -x "$cmd$ext"
+          then
+            shift
+            set -- "$cmd$ext" "$@"
+            break
+          fi
+        done
+      fi
+      if ! test -x "$1"
+      then
+        echo "Command not found: $1" >&2
+        exit 1
+      fi
+      ;;
+    (*)
+      if is_windows
+      then
+        local ext
+        for ext in $windows_exe_extensions
+        do
+          if command -v "$1$ext" >/dev/null 2>&1
+          then
+            shift
+            set -- "$cmd$ext" "$@"
+            break
+          fi
+        done
+      fi
+      if ! command -v "$1" >/dev/null 2>&1
+      then
+        echo "Command not found: $1" >&2
+        exit 1
+      fi
+      ;;
+  esac
+  "$VERBOSE" && echo "Launching $* in mode $invocation_mode, in $PWD." >&2
+  case "$invocation_mode" in
+    (exec)
+      finalize
+      # exec executes the external command even if a function with the same name is defined.
+      exec "$@"
+      ;;
+    (exec-direct)
+      exec "$@"
+      ;;
+    (background)
+      command "$@" &
+      ;;
+    (standard)
+      command "$@"
+      ;;
+    (*)
+      echo "Unknown invocation mode: $invocation_mode" >&2
+      exit 1
+      ;;
+  esac
+}
 
 # Canonicalize `uname -s` result
 uname_s() {
-  local os_name="$(uname -s)"
+  local os_name; os_name="$(uname -s)"
   case "$os_name" in
     (Windows_NT|MINGW*|CYGWIN*) os_name="Windows" ;;
   esac
@@ -388,7 +442,6 @@ run_fetched_cmd() {
   local ver=
   local cmd=
   local ifs=
-  local ifs_saved=
   local os_map=
   local arch_map=
   local ext=
@@ -399,13 +452,7 @@ run_fetched_cmd() {
   local macos_remove_signature=false
   OPTIND=1; while getopts _-: OPT
   do
-    if test "$OPT" = "-"
-    then
-      OPT="${OPTARG%%=*}"
-      # shellcheck disable=SC2030
-      OPTARG="${OPTARG#"$OPT"}"
-      OPTARG="${OPTARG#=}"
-    fi
+    test "$OPT" = - && OPT="${OPTARG%%=*}" && OPTARG="${OPTARG#"$OPT"=}"
     case "$OPT" in
       (name) name=$OPTARG;;
       (ver) ver=$OPTARG;;
@@ -419,7 +466,6 @@ run_fetched_cmd() {
       (rel-dir-template) rel_dir_template=$OPTARG;;
       (print-dir) print_dir=true;;
       (macos-remove-signature) macos_remove_signature=true;;
-      (\?) exit 1;;
       (*) echo "Unexpected option: $OPT" >&2; exit 1;;
     esac
   done
@@ -429,21 +475,24 @@ run_fetched_cmd() {
   then
     cmd="$name"
   fi
-  if test -n "$ifs"
-  then
-    ifs_saved="$IFS"
-    IFS="$ifs"
-  fi
   local app_dir_path="$CACHE_DIR"/"$name"@"$ver"
   mkdir -p "$app_dir_path"
   local cmd_path="$app_dir_path"/"$cmd""$exe_ext"
   if ! command -v "$cmd_path" >/dev/null 2>&1
   then
+    local ifs_saved=
+    if test -n "$ifs"
+    then
+      ifs_saved="$IFS"
+      IFS="$ifs"
+    fi
     local ver="$ver"
+    local os
     # shellcheck disable=SC2034
-    local os="$(map_os "$os_map")"
+    os="$(map_os "$os_map")" || return $?
+    local arch
     # shellcheck disable=SC2034
-    local arch="$(map_arch "$arch_map")"
+    arch="$(map_arch "$arch_map")" || return $?
     if test -z "$ext" -a -n "$ext_map"
     then
       ext="$(map_os "$ext_map")"
@@ -452,7 +501,7 @@ run_fetched_cmd() {
     then
       IFS="$ifs_saved"
     fi
-    local url="$(eval echo "$url_template")"
+    local url; url="$(eval echo "$url_template")" || return $?
     init_temp_dir
     local out_file_path="$TEMP_DIR"/"$name""$ext"
     if ! curl --fail --location "$url" --output "$out_file_path"
@@ -471,7 +520,7 @@ run_fetched_cmd() {
     pop_dir
     if test -n "$ext"
     then
-      local rel_dir_path="$(eval echo "$rel_dir_template")"
+      local rel_dir_path; rel_dir_path="$(eval echo "$rel_dir_template")"
       mv "$work_dir_path"/"$rel_dir_path"/* "$app_dir_path"
     else
       mv "$out_file_path" "$cmd_path"
@@ -486,7 +535,7 @@ run_fetched_cmd() {
   then
     echo "$app_dir_path"
   else
-    PATH="$app_dir_path":$PATH "$cmd_path" "$@"
+    PATH="$app_dir_path":$PATH invoke "$cmd_path" "$@"
   fi
 }
 
@@ -528,8 +577,10 @@ archive_ext_map=\
 "Windows .zip "\
 ""
 
+#endregion
+
 # ==========================================================================
-# Package command management.
+#region Package command management
 
 # Map: command name -> Homebrew package ID
 usm_brew_ids=
@@ -551,19 +602,15 @@ usm_psv_cmds=
 #   --deb-id=<id>     Package ID for Debian/Ubuntu package manager
 #   --winget-id=<id>  Package ID for Windows Package Manager
 require_pkg_cmd() {
+  local name=
   local brew_id=
   local deb_id=
   local winget_id=
   OPTIND=1; while getopts _-: OPT
   do
-    if test "$OPT" = "-"
-    then
-      OPT="${OPTARG%%=*}"
-      # shellcheck disable=SC2030
-      OPTARG="${OPTARG#"$OPT"}"
-      OPTARG="${OPTARG#=}"
-    fi
+    test "$OPT" = - && OPT="${OPTARG%%=*}" && OPTARG="${OPTARG#"$OPT"=}"
     case "$OPT" in
+      (name) name="$OPTARG";;
       (brew-id) brew_id=$OPTARG;;
       (deb-id) deb_id=$OPTARG;;
       (winget-id) winget_id=$OPTARG;;
@@ -582,6 +629,10 @@ require_pkg_cmd() {
     cmd_name="$cmd"
     psv_cmds="$psv_cmds$cmd|"
   done
+  if test -n "$name"
+  then
+    cmd_name="$name"
+  fi
   test -n "$brew_id" && usm_brew_ids="$usm_brew_ids$cmd_name$us$brew_id$us"
   test -n "$winget_id" && usm_winget_ids="$usm_winget_ids$cmd_name$us$winget_id$us"
   test -n "$deb_id" && usm_deb_ids="$usm_deb_ids$cmd_name$us$deb_id$us"
@@ -651,8 +702,10 @@ task_devinstall() {
   fi
 }
 
+#endregion
+
 # ==========================================================================
-# curl(1) // curl https://curl.se/
+#region curl(1) // curl https://curl.se/
 
 # curl(1) is available on macOS and Windows as default.
 require_pkg_cmd \
@@ -668,8 +721,10 @@ subcmd_curl() {
   curl "$@"
 }
 
+#endregion
+
 # ==========================================================================
-# jq(1) // jqlang/jq: Command-line JSON processor https://github.com/jqlang/jq
+#region jq(1) // jqlang/jq: Command-line JSON processor https://github.com/jqlang/jq
 
 jq_prefer_pkg_ec51165=false
 
@@ -717,8 +772,10 @@ subcmd_jq() {
   jq "$@"
 }
 
+#endregion
+
 # ==========================================================================
-# Environment variable management
+#region .env* file management
 
 # Load environment variables from the specified file.
 load_env_file() {
@@ -768,8 +825,42 @@ load_env() {
   load_env_file "$PROJECT_DIR"/.env
 }
 
+#endregion
+
 # ==========================================================================
-# Misc
+#region Misc
+
+# Wait for one or more servers to respond with HTTP 200. Checks each URL sequentially with a 60-second timeout per URL.
+wait_for_server() {
+  local url
+  local max_attempts=60
+  for url in "$@"
+  do
+    echo "Waiting for server at $url to be ready ..." >&2
+    local attempts=0
+    while :
+    do
+      if curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null | grep -q "200"
+      then
+        echo "✓ Server is ready at $url" >&2
+        break
+      fi
+      attempts=$((attempts + 1))
+      if test $attempts -ge $max_attempts
+      then
+        echo "✗ Server at $url did not respond with 200 after $max_attempts seconds" >&2
+        return 1
+      fi
+      sleep 1
+    done
+  done
+}
+
+strip_escape_sequences() {
+  # ANSI escape code - Wikipedia https://en.wikipedia.org/wiki/ANSI_escape_code
+  # BusyBox sed(1) does not accept `\octal` or `\xhex`.
+  sed -E -e 's/\[[0-9;]*[ABCDEFGHJKSTmin]//g'
+}
 
 # Absolute path to relative path
 abs2rel() {
@@ -796,35 +887,18 @@ then
   alias shuf='sort -R'
 fi
 
-# Executable file extension.
-exe_ext=
-# shellcheck disable=SC2034
-is_windows && exe_ext=".exe"
-
 is_macos && alias sha1sum='shasum -a 1'
 
 # Memoize the (mainly external) command output.
 memoize() {
-  local cache_file_path="$TEMP_DIR"/cache-"$(echo "$@" | sha1sum | cut -d' ' -f1)"
+  local cache_file_path
+  cache_file_path="$TEMP_DIR"/cache-"$(echo "$@" | sha1sum | cut -d' ' -f1)"
   if ! test -r "$cache_file_path"
   then
-    "$@" >"$cache_file_path"
+    "$@" >"$cache_file_path" || return $?
   fi
   cat "$cache_file_path"
 }
-
-# Memoize the output of a series of commands. If you would like to nest, use subprocess function or `memoize` function instead.
-#
-# Usage:
-#   foo() {
-#     begin_memoize 8701441 "$@" || return 0
-#
-#     echo hello
-#     sleep 3 # Takes long time.
-#     echo world
-#
-#     end_memoize
-#   }
 
 # Current cache file path for memoization.
 cache_file_path_cb3727b=
@@ -863,7 +937,7 @@ shell_path() {
       path="$(realpath /proc/$$/exe)" || return 1
     else
       path="$(realpath "$(ps -p $$ -o comm=)")" || return 1
-    fi
+    fi 
     echo "$path"
   fi
 
@@ -872,8 +946,6 @@ shell_path() {
 
 # The implementation name of the shell which is running the script. Not "sh" but "bash", "ash", "dash", etc.
 shell_name() {
-  begin_memoize 09e4c0d "$@" || return 0
-
   if test "${BASH+set}" = set
   then
     echo "bash"
@@ -907,8 +979,6 @@ shell_name() {
         ;;
     esac
   fi
-
-  end_memoize
 }
 
 is_dash() {
@@ -975,6 +1045,11 @@ newer() {
   test -n "$(find "$@" -newer "$dest" 2>/dev/null)"
 }
 
+# Returns true if any source file is older than the destination file.
+older() {
+  ! newer "$@"
+}
+
 # Kill child processes for each shell/platform.
 kill_child_processes() {
   if is_windows
@@ -1017,81 +1092,6 @@ kill_child_processes() {
   fi
 }
 
-# Invoke command with proper executable extension, with the specified invocation mode.
-#
-# Invocation mode can be specified via INVOCATION_MODE environment variable:
-#   INVOCATION_MODE=standard: (Default) Run the command in the current process.
-#   INVOCATION_MODE=exec: Replace the process with the command.
-#   INVOCATION_MODE=exec-direct: Replace the process with the command, without calling cleanups.
-#   INVOCATION_MODE=background: Run the command in the background.
-invoke() {
-  local invocation_mode="${INVOCATION_MODE:-standard}"
-  if test $# -eq 0
-  then
-    echo "No command specified" >&2
-    exit 1
-  fi
-  case "$1" in
-    (*/*)
-      if is_windows
-      then
-        local cmd="$1"
-        local ext
-        for ext in .exe .cmd .bat
-        do
-          if test -x "$cmd$ext"
-          then
-            shift
-            set -- "$cmd$ext" "$@"
-            break
-          fi
-        done
-      fi
-      if ! test -x "$1"
-      then
-        echo "Command not found: $1" >&2
-        exit 1
-      fi
-      ;;
-    (*)
-      if is_windows
-      then
-        local cmd="$1"
-        local ext
-        for ext in .exe .cmd .bat
-        do
-          if command -v "$1$ext" >/dev/null 2>&1
-          then
-            shift
-            set -- "$cmd$ext" "$@"
-            break
-          fi
-        done
-      fi
-      if ! command -v "$1" >/dev/null 2>&1
-      then
-        echo "Command not found: $1" >&2
-        exit 1
-      fi
-      ;;
-  esac
-  case "$invocation_mode" in
-    (exec)
-      finalize
-      exec "$@"
-      ;;
-    (exec-direct) exec "$@";;
-    (background) command "$@" &;;
-    (standard)
-      command "$@"
-      ;;
-    (*)
-      echo "Unknown invocation mode: $invocation_mode" >&2
-      exit 1
-      ;;
-  esac
-}
-
 # Open the URL in the browser.
 browse() {
   if is_linux
@@ -1113,7 +1113,7 @@ browse() {
 get_key() {
   if is_linux || is_macos
   then
-    local saved_stty="$(stty -g)"
+    local saved_stty; saved_stty="$(stty -g)" || return $?
     stty -icanon -echo
     dd bs=1 count=1 2>/dev/null
     stty "$saved_stty"
@@ -1121,7 +1121,7 @@ get_key() {
   fi
   local key
   # Bash and BusyBox Ash provide the `-s` (silent mode) option.
-  if test is_ash || is_bash
+  if is_ash || is_bash
   then
     # shellcheck disable=SC3045
     read -rsn1 key
@@ -1289,30 +1289,6 @@ then
   }
 fi
 
-# Encode positional parameters into a string that can be passed to `eval` to restore the positional parameters.
-#
-# Example:
-#   local eval_args="$(make_eval_args "$@")"
-#   set --
-#   eval "set -- $eval_args"
-make_eval_args() {
-  local arg
-  local first
-  # Quotation character inside parameter expansion confuses static analysis tools.
-  local quote="'"
-  for arg in "$@"
-  do
-    printf "'"
-    until test "$arg" = "${arg#*"$quote"}"
-    do
-      first="${arg%%"$quote"*}"
-      arg="${arg#*"$quote"}"
-      printf "%s'\"'\"'" "$first"
-    done
-    printf "%s' " "$arg"
-  done
-}
-
 # Check if a directory is empty.
 is_dir_empty() {
   if ! test -d "$1"
@@ -1326,8 +1302,31 @@ is_dir_empty() {
   return 1
 }
 
+# [<file>] Read the file and print substituting environment variables. Unlike envsubst(1), this tries to expand undefined environment variables and fails for that.
+env_subst() {
+  local template_file="$1"
+  eval "cat <<EOF
+$(cat "$template_file")
+EOF"
+}
+
+# [regex replacement ...] Substitute text that matches regex patterns in stdin input. Takes pairs of regex/replacement arguments and applies them via sed(1).
+resubst() {
+  local step=2
+  local i=0 n=$(($# / step))
+  while test "$i" -lt "$n"
+  do
+    set -- "$@" -e "s${us}$1${us}$2${us}g"
+    shift $step
+    i=$((i + 1))
+  done
+  sed "$@"
+}
+
+#endregion
+
 # ==========================================================================
-# Install/Update task-sh task scripts.
+#region Install/Update task-sh task scripts
 
 github_prepare_token() {
   first_call b1929c9 || return 0
@@ -1360,7 +1359,7 @@ github_api_request() {
   then
     set -- "$@" --header "Authorization: Bearer $GITHUB_TOKEN"
   fi
-  "$VERBOSE" && echo "Accessing GitHub API: $url"
+  "$VERBOSE" && echo "Accessing GitHub API: $url" >&2
   curl "$@" "$url"
 }
 
@@ -1368,7 +1367,7 @@ github_tree_get() {
   local owner=
   local repos=
   local tree_sha=main
-  OPTIND=1; while getopts -: OPT
+  OPTIND=1; while getopts _-: OPT
   do
     test "$OPT" = - && OPT="${OPTARG%%=*}" && OPTARG="${OPTARG#"$OPT"=}"
     case "$OPT" in
@@ -1381,16 +1380,24 @@ github_tree_get() {
   shift $((OPTIND-1))
 
   # REST API endpoints for Git trees - GitHub Docs https://docs.github.com/en/rest/git/trees
-  local url="$(printf "https://api.github.com/repos/%s/%s/git/trees/%s" "$owner" "$repos" "$tree_sha")"
+  local url
+  url="$(printf "https://api.github.com/repos/%s/%s/git/trees/%s" "$owner" "$repos" "$tree_sha")"
   github_api_request "$url"
 }
 
+# Fetch raw content of a file from a GitHub repository
+# Usage: github_raw_fetch [OPTIONS]
+# Options:
+#   --owner=OWNER         GitHub repository owner/organization
+#   --repos=REPOS         GitHub repository name
+#   --tree-sha=SHA        Tree SHA, branch name, or tag name (default: main). Aliases: --branch, --tag, --tree
+#   --path=PATH           Path to the file within the repository
 github_raw_fetch() {
   local owner=
   local repos=
   local tree_sha=main
   local path=
-  OPTIND=1; while getopts -: OPT
+  OPTIND=1; while getopts _-: OPT
   do
     test "$OPT" = - && OPT="${OPTARG%%=*}" && OPTARG="${OPTARG#"$OPT"=}"
     case "$OPT" in
@@ -1404,13 +1411,14 @@ github_raw_fetch() {
   shift $((OPTIND-1))
 
   path="${path#/}"
-  local url="$(printf "https://raw.githubusercontent.com/%s/%s/%s/%s" "$owner" "$repos" "$tree_sha" "$path")"
+  local url
+  url="$(printf "https://raw.githubusercontent.com/%s/%s/%s/%s" "$owner" "$repos" "$tree_sha" "$path")"
   curl --fail --silent "$url"
 }
 
 state_path="$PROJECT_DIR/.task-sh-state.json"
 
-# [<name>...] Install task-sh files.
+# [<name>...] Install task-sh files. If no name is specified, lists available files.
 subcmd_task__install() {
   local force=false
   if test "$#" -gt 0 && test "$1" = "--force"
@@ -1421,10 +1429,18 @@ subcmd_task__install() {
   local rc=0
   local resp
   local main_branch=main
-  # resp="$(curl --silent --fail "${tasksh_github_tree_api_base}/${main_branch}")"
   resp="$(github_tree_get --owner="knaka" --repos="task-sh")"
-  local latest_commit="$(printf "%s" "$resp" | jq -r .sha)"
+  local latest_commit; latest_commit="$(printf "%s" "$resp" | jq -r .sha)"
   "$VERBOSE" && echo "Latest commit of \"$main_branch\" is \"$latest_commit\"." >&2
+  if test $# = 0
+  then
+    echo "Available files:" >&2
+    echo "$resp" \
+    | jq -r '.tree[] | .path' \
+    | grep -e '^[^._].*\.lib\.sh$' \
+    | sed -e 's/^/  /'
+    return
+  fi
   if ! test -r "$state_path"
   then
     echo '{}' >"$state_path"
@@ -1436,7 +1452,7 @@ subcmd_task__install() {
     name="${file##*/}"
     "$VERBOSE" && echo "Name: \"$name\"."
     local indent="  "
-    local node mode last_sha download_url
+    local node mode last_sha
     local last_sha=
     last_sha="$(jq -r --arg name "$name" '.last_sha[$name] // ""' "$state_path")"
     "$VERBOSE" && echo "${indent}Last installed SHA:" "$last_sha"
@@ -1468,13 +1484,20 @@ subcmd_task__install() {
     fi
     local new_sha
     new_sha="$(echo "$node" | jq -r .sha)"
-    if ! "$force" && test -n "$local_sha" -a "$new_sha" = "$local_sha"
+    "$VERBOSE" && echo "${indent}Remote SHA:" "$new_sha" >&2
+    if ! "$force" && test -n "$local_sha" -a "$new_sha" = "$last_sha"
     then
       echo "\"$name\" is up to date. Skipping." >&2
       continue
     fi
     # shellcheck disable=SC2059
-    printf "Downloading \"$name\" to \"$name\" ... " >&2
+    printf "Downloading \"$name\" ... " >&2
+    if test "$name" = "task.sh"
+    then
+      "$VERBOSE" && Lazily replacing "$file.new" to "$file".
+      chaintrap "mv \"$file.new\" \"$file\"" EXIT
+      local file="$file.new"
+    fi
     github_raw_fetch --owner="knaka" --repos="task-sh" --tree-sha="$latest_commit" --path=/"$name" >"$file"
     echo "done." >&2
     local temp_json="$TEMP_DIR"/1caef61.json
@@ -1489,22 +1512,29 @@ subcmd_task__install() {
 
 # Update task-sh files.
 task_task__update() {
-  local exclude=":$TASKS_DIR/project.lib.sh:"
-  set --
   local file
+  local excludes=":"
+  for file in "$TASKS_DIR"/project*.lib.sh
+  do
+    test -e "$file" || continue
+    excludes="$excludes:$file:"
+  done
+  set --
   for file in "$TASKS_DIR"/*.lib.sh "$TASKS_DIR"/task.sh
   do
     test -r "$file" || continue
-    case "$exclude" in
+    case "$excludes" in
       (*:$file:*) continue;;
     esac
     set -- "$@" "$file"
   done
-  subcmd_task__install task task.cmd "$@"
+  subcmd_task__install "$INITIAL_PWD"/task "$INITIAL_PWD"/task.cmd "$@"
 }
 
+#endregion
+
 # ==========================================================================
-# Main.
+#region Main
 
 sub_helps_e4c531b=""
 
@@ -1519,10 +1549,10 @@ psv_task_file_paths_4a5f3ab=
 tasksh_help() {
   cat <<EOF
 Usage:
-  $ARG0BASE [options] <subcommand> [args...]
-  $ARG0BASE [options] <task[arg1,arg2,...]> [tasks...]
+  $ARG0BASE [flags] <subcommand> [args...]
+  $ARG0BASE [flags] <task[arg1,arg2,...]> [tasks...]
 
-Options:
+Flags:
   -d, --directory=<dir>  Change directory before running tasks.
   -h, --help             Display this help and exit.
   -v, --verbose          Verbose mode.
@@ -1537,7 +1567,7 @@ EOF
           gsub(/^#+[ ]*/, "", desc)
           next
         }
-        /^(task_|subcmd_)[[:alnum:]_]()/ { 
+        /^(task_|subcmd_)[[:alnum:]_]()/ {
           func_name = $1
           sub(/\(\).*$/, "", func_name)
           type = func_name
@@ -1545,7 +1575,9 @@ EOF
           name = func_name
           sub(/^[^_]+_/, "", name)
           gsub(/__/, ":", name)
-          print type " " name " " desc
+          basename = FILENAME
+          sub(/^.*\//, "", basename)
+          print type " " name " " basename " " desc
           desc = ""
           next
         }
@@ -1565,21 +1597,39 @@ EOF
     else
       echo "Tasks:"
     fi
-    local max_name_len="$(
+    local max_name_len; max_name_len="$(
       echo "$lines" \
       | while read -r t name _
-      do
-        test "$t" = "$i" || continue
-        echo "${#name}"
-      done \
+        do
+          test "$t" = "$i" || continue
+          echo "${#name}"
+        done \
       | sort -nr \
       | head -1
     )"
-    echo "$lines" | while read -r type name desc
-    do
-      test "$type" = "$i" || continue
-      printf "  %-${max_name_len}s  %s\n" "$name" "$desc"
-    done | sort
+    echo "$lines" \
+    | sort \
+    | while read -r type name basename desc
+      do
+        test "$type" = "$i" || continue
+        case "${basename}" in
+          # Emphasize project tasks/subcommands, not shared ones.
+          (project*.lib.sh)
+            if is_terminal
+            then
+              # Underline
+              padding_len=$((max_name_len - ${#name}))
+              printf "  \033[4m%s\033[0m%-${padding_len}s  %s\n" "$name" "" "$desc"
+            else
+              # Asterisk
+              printf "* %-${max_name_len}s  %s\n" "$name" "$desc"
+            fi
+            ;;
+          (*)
+            printf "  %-${max_name_len}s  %s\n" "$name" "$desc"
+            ;;
+        esac
+      done
   done
   local sub_help
   for sub_help in $sub_helps_e4c531b
@@ -1591,9 +1641,15 @@ EOF
 
 # Execute a command in task.sh context.
 subcmd_task__exec() {
-  local saved_shell_flags="$(set +o)"
+  local saved_shell_flags; saved_shell_flags="$(set +o)"
   set +o errexit
-  "$@"
+  if alias "$1" >/dev/null 2>&1
+  then
+    # shellcheck disable=SC2294
+    eval "$@"
+  else
+    "$@"
+  fi
   echo "Exit status: $?" >&2
   eval "$saved_shell_flags"
 }
@@ -1626,7 +1682,7 @@ call_task() {
     if type "before_$prefix" >/dev/null 2>&1
     then
       "$VERBOSE" && echo "Calling before function:" "before_$prefix" "$func_name" "$@" >&2
-      "before_$prefix" "$func_name" "$@"
+      "before_$prefix" "$func_name" "$@" || return $?
     fi
     test -z "$prefix" && break
     case "$prefix" in
@@ -1635,14 +1691,20 @@ call_task() {
     esac
   done
   "$VERBOSE" && echo "Calling task function:" "$func_name" "$@" >&2
-  "$func_name" "$@"
+  if alias "$func_name" >/dev/null 2>&1
+  then
+    # shellcheck disable=SC2294
+    eval "$func_name" "$@"
+  else
+    "$func_name" "$@"
+  fi
   prefix="$task_name"
   while :
   do
     if type "after_$prefix" >/dev/null 2>&1
     then
       "$VERBOSE" && echo "Calling after function:" "after_$prefix" "$func_name" "$@" >&2
-      "after_$prefix" "$func_name" "$@"
+      "after_$prefix" "$func_name" "$@" || return $?
     fi
     case "$prefix" in
       (*__*) ;;
@@ -1657,8 +1719,10 @@ tasksh_main() {
 
   chaintrap kill_child_processes EXIT TERM INT
 
-  export PROJECT_DIR="$(realpath "$PROJECT_DIR")"
-  export TASKS_DIR="$(realpath "$TASKS_DIR")"
+  PROJECT_DIR="$(realpath "$PROJECT_DIR")"
+  export PROJECT_DIR
+  TASKS_DIR="$(realpath "$TASKS_DIR")"
+  export TASKS_DIR
 
   # Before loading task files, permit running task:install to fetch and overwrite existing task files even when they cannot be loaded due to errors or missing `source`d files.
   if test "$#" -gt 0 && test "$1" = "task:install" -o "$1" = "subcmd_task__install"
@@ -1686,16 +1750,7 @@ tasksh_main() {
   ignore_missing=false
   OPTIND=1; while getopts hvsi-: OPT
   do
-    if test "$OPT" = "-"
-    then
-      # Extract long option name.
-      # shellcheck disable=SC2031
-      OPT="${OPTARG%%=*}"
-      # Extract long option argument.
-      # shellcheck disable=SC2031
-      OPTARG="${OPTARG#"$OPT"}"
-      OPTARG="${OPTARG#=}"
-    fi
+    test "$OPT" = - && OPT="${OPTARG%%=*}" && OPTARG="${OPTARG#"$OPT"=}"
     case "$OPT" in
       (h|help) shows_help=true;;
       (s|skip-missing) skip_missing=true;;
@@ -1718,7 +1773,6 @@ tasksh_main() {
 
   # Execute the subcommand and exit.
   local subcmd="$1"
-  TASK_NAME="$subcmd"
   subcmd="$(echo "$subcmd" | sed -r -e 's/:/__/g')"
   if type subcmd_"$subcmd" >/dev/null 2>&1
   then
@@ -1726,7 +1780,7 @@ tasksh_main() {
     if alias subcmd_"$subcmd" >/dev/null 2>&1
     then
       # shellcheck disable=SC2294
-      eval call_task subcmd_"$subcmd" "$@"
+      call_task subcmd_"$subcmd" "$@"
       exit $?
     fi
     call_task subcmd_"$subcmd" "$@"
@@ -1757,7 +1811,6 @@ tasksh_main() {
         args="$(echo "$task_with_args" | sed -r -e 's/^.*\[//' -e 's/\]$//' -e 's/,/ /')"
         ;;
     esac
-    TASK_NAME="$task_name"
     task_name="$(echo "$task_name" | sed -r -e 's/:/__/g')"
     if type task_"$task_name" >/dev/null 2>&1
     then
@@ -1790,3 +1843,5 @@ case "${0##*/}" in
     tasksh_main "$@"
     ;;
 esac
+
+#endregion

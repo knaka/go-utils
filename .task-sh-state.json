@@ -1,8 +1,8 @@
 {
   "last_sha": {
-    "task.sh": "8142a8cb380e5e2253bfca69d5a61aa8d2a8ef4d",
-    "go.lib.sh": "505cfcafdb7fb6aa84fff9af9cd6d310687d13cf",
-    "task": "dd6bcca50135e64c6dbb672d49a4a9cff1452f45",
-    "task.cmd": "4290403f0e152e2c1b65cac089fb288e5390bae8"
+    "task.sh": "b67aff42a58d72dc6e6e1fb11b3f8e7c92ad7288",
+    "go.lib.sh": "e5a9438f4c91be63fed118e122b917589212e18d",
+    "task": "a0de64221c18b8599ee57973cc8cd115bd2dbc13",
+    "task.cmd": "237ba23664e0066575c851e189e81e8c5e74447a"
   }
 }

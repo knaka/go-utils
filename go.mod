@@ -1,6 +1,8 @@
 module github.com/knaka/go-utils
 
-go 1.20
+go 1.25
+
+toolchain go1.25.6
 
 require (
 	github.com/friendsofgo/errors v0.9.2
@@ -13,6 +15,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/samber/lo v1.46.0 // indirect
 	github.com/spf13/pflag v1.0.10
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
