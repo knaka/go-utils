@@ -43,6 +43,11 @@ mkdir -p "$CACHE_DIR"
 # For platforms other than Windows
 : "${LOCALAPPDATA:=/}"
 
+if ! test -d /etc/ssl
+then
+  export SSL_CERT_FILE="$CACHE_DIR"/cacert.pem
+fi
+
 #endregion
 
 # ==========================================================================
@@ -65,7 +70,7 @@ chaintrap() {
   local stmts_new="$1"
   shift 
   init_temp_dir || return $?
-  # Basename of the script file containing the statements to be called during finalization
+  # Base path of the file containing the statements to be called during finalization
   local stmts_file_base="$TEMP_DIR"/"$stmts_file_id"
   local stmts_old_file="$TEMP_DIR"/347803f
   local sigspec
@@ -107,8 +112,17 @@ first_call() {
   eval "called_$1=true"
 }
 
+# Check if stdout is tty.
 is_terminal() {
   test -t 1
+}
+
+# Check if external command exists in $PATH.
+has_external_command() {
+  # test -x "$(command -v "$1" 2>/dev/null)"
+  # command which "$1" >/dev/null # `command` does not ignore builtins
+  # env which "$1" >/dev/null
+  which "$1" >/dev/null
 }
 
 #endregion
@@ -423,7 +437,7 @@ map_arch() {
 }
 
 # Fetch and run a command from a remote archive
-# Usage: fetch_cmd_run [OPTIONS] -- [COMMAND_ARGS...]
+# Usage: run_fetched_cmd [OPTIONS] -- [COMMAND_ARGS...]
 # Options:
 #   --name=NAME           Application name. Used as the directory name to store the command.
 #   --ver=VERSION         Application version
@@ -513,8 +527,8 @@ run_fetched_cmd() {
     mkdir -p "$work_dir_path"
     push_dir "$work_dir_path"
     case "$ext" in
-      (.zip) unzip "$out_file_path" ;;
-      (.tar.gz) tar -xf "$out_file_path" ;;
+      (.zip) unzip "$out_file_path" >&2 ;;
+      (.tar.gz) tar -xf "$out_file_path" >&2 ;;
       (*) ;;
     esac
     pop_dir
@@ -705,15 +719,110 @@ task_devinstall() {
 #endregion
 
 # ==========================================================================
+#region Mise - Home | mise-en-place https://mise.jdx.dev/
+
+# Releases · jdx/mise https://github.com/jdx/mise/releases
+mise_version_adcf449="2026.1.12"
+
+set_mise_version() {
+  mise_version_adcf449="$1"
+}
+
+mise() {
+  # shellcheck disable=SC2016
+  run_fetched_cmd \
+    --name="mise" \
+    --ver="$mise_version_adcf449" \
+    --os-map="Linux linux Darwin macos Windows windows " \
+    --arch-map="x86_64 x64 arm64 arm64 " \
+    --ext-map="$archive_ext_map" \
+    --url-template='https://github.com/jdx/mise/releases/download/v${ver}/mise-v${ver}-${os}-${arch}${ext}' \
+    --rel-dir-template='mise/bin' \
+    -- \
+    "$@"
+}
+
+# Run mise(1)
+subcmd_mise() {
+  mise "$@"
+}
+
+#endregion
+
+# ==========================================================================
 #region curl(1) // curl https://curl.se/
 
-# curl(1) is available on macOS and Windows as default.
-require_pkg_cmd \
-  --deb-id=curl \
-  curl
+apt_helper_download() {
+  local url="$1"
+  local dest="$2"
+  local apt_conf_path="$TEMP_DIR"/apt.conf
+  printf "%s\n" \
+    'Acquire::https::Verify-Peer "false";' \
+    'Acquire::https::Verify-Host "false";' \
+  >"$apt_conf_path"
+  /usr/lib/apt/apt-helper -c "$apt_conf_path" download-file "$url" "$dest" 1>&2
+}
 
 curl() {
-  run_pkg_cmd curl "$@"
+  if has_external_command curl >/dev/null 2>&1
+  then
+    invoke curl "$@"
+    return
+  fi
+  local cmd_path="$CACHE_DIR"/curl"$exe_ext"
+  if ! test -x "$cmd_path"
+  then
+    if is_linux && test -x /usr/lib/apt/apt-helper
+    then
+      # Release v8.11.0 · moparisthebest/static-curl https://github.com/moparisthebest/static-curl/releases/tag/v8.11.0
+      local curl_version=v8.11.0
+      # Copied from `sha256sum.txt`
+      local curl_sha256sums='
+d18aa1f4e03b50b649491ca2c401cd8c5e89e72be91ff758952ad2ab5a83135d  ./curl-amd64
+1a4747fd88b31b93bf48bcace9d1e3ebf348afbbf8c0a6f4e1751795ea6ff39b  ./curl-i386
+1b050abd1669f9a2ac29b34eb022cdeafb271dce5a4fb57d8ef8fadff6d7be1f  ./curl-aarch64
+779a1bd9f486fd5ff1da25d5e5bb99c58bc79ded22344f2b7ff366cf645a6630  ./curl-armv7
+b92dc31e0d614e04230591377837f44ff2c98430c821d93a5aaa0fae30c0fd1c  ./curl-armhf
+50be538158f06fa71a4751d9f3f06932dc90337d43768b4963af51e84ebb65ac  ./curl-ppc64le
+'
+      local arch
+      case "$(uname -m)" in
+        (x86_64) arch=amd64;;
+        (aarch64) arch=aarch64;;
+        (*) echo "Unsupported architecture: $(uname -m)" >&2; return 1;;
+      esac
+      local url="https://github.com/moparisthebest/static-curl/releases/download/$curl_version/curl-$arch"
+      apt_helper_download "$url" "$cmd_path"
+      if ! echo "$(echo "$curl_sha256sums" | grep "$(basename "$url")" | cut -d' ' -f1)" "$cmd_path" | sha256sum --check --status
+      then
+        echo "curl checksum mismatch." >&2
+        return 1
+      fi
+      chmod +x "$cmd_path"
+    else
+      echo "No way to download curl." >&2
+      return 1
+    fi
+  fi
+  if ! test -d /etc/ssl
+  then
+    local ca_cert_path="$CACHE_DIR"/cacert.pem
+    if ! test -r "$ca_cert_path"
+    then
+      # curl - Extract CA Certs from Mozilla https://curl.se/docs/caextract.html
+      local cacert_url="https://curl.se/ca/cacert-2025-12-02.pem"
+      local cacert_sha256sum="f1407d974c5ed87d544bd931a278232e13925177e239fca370619aba63c757b4"
+      "$cmd_path" --insecure --fail --location --output "$CACHE_DIR"/cacert.pem "$cacert_url"
+      if ! echo "$cacert_sha256sum" "$CACHE_DIR"/cacert.pem | sha256sum --check --status 1>&2
+      then
+        echo "cacert.pem checksum mismatch." >&2
+        return 1
+      fi
+    fi
+    # $SSL_CERT_FILE is set.
+    # set -- --cacert "$ca_cert_path" "$@"
+  fi
+  "$cmd_path" "$@"
 }
 
 # Run curl(1).
@@ -728,7 +837,7 @@ subcmd_curl() {
 
 jq_prefer_pkg_ec51165=false
 
-# Make use of jq(1) which is installed by platform-specific package manager rather than fetched binary.
+# Make use of jq(1) installed by a platform-specific package manager rather than the fetched binary.
 jq_prefer_pkg() {
   jq_prefer_pkg_ec51165=true
   require_pkg_cmd \
@@ -794,7 +903,7 @@ load_env_file() {
       continue
     fi
     value="$(eval "echo \"\${$key:=}\"")"
-    # Not to overwrite the existing, previously set value.
+    # Do not overwrite an existing, previously set value.
     if test -n "$value"
     then
       continue
@@ -856,6 +965,7 @@ wait_for_server() {
   done
 }
 
+# Convenient for cleaning logs.
 strip_escape_sequences() {
   # ANSI escape code - Wikipedia https://en.wikipedia.org/wiki/ANSI_escape_code
   # BusyBox sed(1) does not accept `\octal` or `\xhex`.
@@ -993,7 +1103,7 @@ is_bash() {
   test "$(shell_name)" = "bash"
 }
 
-# Check if the file(s)/directory(s) are newer than the destination.
+# Check if the file(s)/directories are newer than the destination.
 newer() {
   local found_than=false
   local dest=
@@ -1045,7 +1155,7 @@ newer() {
   test -n "$(find "$@" -newer "$dest" 2>/dev/null)"
 }
 
-# Returns true if any source file is older than the destination file.
+# Returns true if no source file is newer than the destination file.
 older() {
   ! newer "$@"
 }
@@ -1132,7 +1242,7 @@ get_key() {
   echo "$key"
 }
 
-# Show a message and get an input from the user.
+# Show a message and get input from the user.
 prompt() {
   local message="${1:-Text}"
   local default="${2:-}"
@@ -1223,7 +1333,7 @@ emph() {
 
 # Sort version strings.
 # Version strings that are composed of three parts are sorted considering the third part as a patch version.
-# Long option `--version-sort` is specific to BSD sort(1).
+# Long option `--version-sort` is a GNU sort(1) extension.
 # shellcheck disable=SC2120
 sort_version() {
   sed -E -e '/-/! { s/^([^.]+(\.[^.]+){2})$/\1_/; }' -e 's/-patch/_patch/' | sort -V "$@" | sed -e 's/_$//' -e 's/_patch/-patch/'
@@ -1494,7 +1604,7 @@ subcmd_task__install() {
     printf "Downloading \"$name\" ... " >&2
     if test "$name" = "task.sh"
     then
-      "$VERBOSE" && Lazily replacing "$file.new" to "$file".
+      "$VERBOSE" && echo "Lazily replacing \"$file.new\" with \"$file\"." >&2
       chaintrap "mv \"$file.new\" \"$file\"" EXIT
       local file="$file.new"
     fi
@@ -1656,7 +1766,7 @@ subcmd_task__exec() {
 
 usv_called_task_7ef15a7="$us"
 
-# Call the task/subcommand. If the unique task (including the arguments) is already called before, this returns immediately. Calls before/after hooks accordingly.
+# Call the task/subcommand. If the same task (including the arguments) has already been called, this returns immediately. Calls before/after hooks accordingly.
 call_task() {
   local func_name="$1"
   shift
@@ -1714,10 +1824,14 @@ call_task() {
   done
 }
 
+defer_child_cleanup() {
+  chaintrap kill_child_processes EXIT TERM INT
+}
+
 tasksh_main() {
   set -o nounset -o errexit
 
-  chaintrap kill_child_processes EXIT TERM INT
+  defer_child_cleanup
 
   PROJECT_DIR="$(realpath "$PROJECT_DIR")"
   export PROJECT_DIR
@@ -1732,7 +1846,7 @@ tasksh_main() {
     return 0
   fi
 
-  # Load all task files in the tasks directory. All task files are sourced in the $TASKS directory context.
+  # Load all task files in the tasks directory. All task files are sourced in the $TASKS_DIR directory context.
   push_dir "$TASKS_DIR"
   local path
   for path in "$TASKS_DIR"/task.sh "$TASKS_DIR"/*.lib.sh
