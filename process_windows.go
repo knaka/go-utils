@@ -5,17 +5,14 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"os/exec"
 	"strings"
 )
 
 func debuggerProcessExists(_ int) (exists bool) {
-	cmd := exec.Command("tasklist.exe")
-	cmdOut := Value(cmd.StdoutPipe())
-	defer (func() { Ignore(cmdOut.Close()) })()
-	scanner := bufio.NewScanner(cmdOut)
-	Must(cmd.Start()) // Start() does not wait while Run() does
-	defer (func() { Must(cmd.Wait()) })()
+	output := Value(exec.Command("tasklist.exe").Output())
+	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "dlv.exe") {

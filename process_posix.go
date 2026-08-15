@@ -5,19 +5,15 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
 )
 
-func debuggerProcessExists(pid int) (exists bool) {
-	cmd := exec.Command("ps", "wx")
-	cmdOut := Value(cmd.StdoutPipe())
-	defer (func() { Ignore(cmdOut.Close()) })()
-	scanner := bufio.NewScanner(cmdOut)
-	Must(cmd.Start()) // Start() does not wait while Run() does
-	// On VSCode, os/exec.Command.Wait() (os/exec.Command.Process.Wait()) does not return after attached.
-	// defer (func() { Must(cmd.Wait()) })()
+func debuggerProcessExists(pid int) bool {
+	output := Value(exec.Command("ps", "wx").Output())
+	scanner := bufio.NewScanner(bytes.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
 		// IntelliJ IDEA, GoLand
