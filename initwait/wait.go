@@ -1,6 +1,3 @@
-//go:build debug
-// +build debug
-
 package initwait
 
 import (
@@ -12,6 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	//lint:ignore ST1001
+	//nolint:staticcheck
+	//revive:disable-next-line:dot-imports
+	. "github.com/knaka/go-utils"
 )
 
 // waitHTTP waits for an HTTP request to be made to a dynamically assigned port.
@@ -34,22 +36,22 @@ func waitHTTP() {
 		os.Exit(1)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
+	Must(listener.Close())
 	pid := os.Getpid()
 	fmt.Fprintf(os.Stderr, "Process %d is waiting for HTTP access at http://127.0.0.1:%d\n", pid, port)
 	done := make(chan bool, 1)
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprintf(w, "OK")
+		Must(fmt.Fprintf(w, "OK"))
 		select {
 		case done <- true:
 		default:
 		}
 	})
 	go func() {
-		http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+		Must(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 	}()
 	<-done
-	fmt.Fprintf(os.Stderr, "HTTP request received\n")
+	Must(fmt.Fprintf(os.Stderr, "HTTP request received\n"))
 	time.Sleep(1 * time.Second)
 }
 
@@ -102,6 +104,7 @@ func waitSIGINT() {
 }
 
 func init() {
+	Debugger()
 	waitHTTP()
 	waitSTDIN()
 	waitSIGINT()

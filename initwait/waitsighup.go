@@ -1,5 +1,4 @@
-//go:build debug && (darwin || linux)
-// +build debug
+//go:build darwin || linux
 // +build darwin linux
 
 package initwait

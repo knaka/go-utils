@@ -5,10 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach Go",
+      "name": "Launch foo",
       "type": "go",
-      "request": "attach",
-      "mode": "local",
+      "request": "launch",
+      "program": "./cmd/foo",
+      "args": ["--wait-http"],
     },
   ]
 }
