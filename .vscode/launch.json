@@ -9,7 +9,7 @@
       "name": "Launch foo",
       "type": "go",
       "request": "launch",
-      "mode": "auto",
+      "mode": "debug",
       "program": "./cmd/foo",
       // "envFile": "${workspaceFolder}/.env.vscode",
       // "args": ["--wait-http"],
